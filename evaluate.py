@@ -2,8 +2,10 @@
 
 import argparse
 from collections import defaultdict
+from datetime import datetime
 
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn import metrics
 import torch
 from torch.utils.data import DataLoader
@@ -85,6 +87,18 @@ def compute_video_level_auc(video_to_logits, video_to_labels):
     output_labels = torch.stack([video_to_labels[video_id] for video_id in video_to_logits.keys()])
 
     fpr, tpr, _ = metrics.roc_curve(output_labels.cpu().numpy(), output_batch.cpu().numpy())
+    
+    # save fpr and tpr using datetime as filename
+    datetime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    with open(f"roc_{datetime_str}.csv", "w") as f:
+        f.write("fpr,tpr\n")
+        for i in range(len(fpr)):
+            f.write(f"{fpr[i]},{tpr[i]}\n")
+    # plt.plot(fpr, tpr)
+    # plt.xlabel("False positive rate")
+    # plt.ylabel("True positive rate")
+    # plt.title("ROC curve")
+    # plt.show()
     return metrics.auc(fpr, tpr)
 
 
@@ -127,7 +141,7 @@ def validate_video_level(model, loader, args):
 def main():
     args = parse_args()
 
-    model = get_model(weights_forgery_path=args.weights_forgery_path)
+    model = get_model(weights_forgery_path=args.weights_forgery_path, device=args.device)
 
     # Get dataset
     transform = Compose(
