@@ -40,7 +40,10 @@ def get_model(weights_forgery_path=None, device="cuda:0"):
 
     # load weights learned during face forgery detection
     if weights_forgery_path is not None:
-        checkpoint_dict = torch.load(weights_forgery_path, map_location=lambda storage, loc: storage.cuda(device))
+        if device == "cuda":
+            checkpoint_dict = torch.load(weights_forgery_path, map_location=lambda storage, loc: storage.cuda(device))
+        else:
+            checkpoint_dict = torch.load(weights_forgery_path, map_location=lambda storage, loc: storage)
         model.load_state_dict(checkpoint_dict["model"])
         print("Face forgery weights loaded.")
     else:
