@@ -90,7 +90,7 @@ def compute_video_level_auc(video_to_logits, video_to_labels):
     
     # save fpr and tpr using datetime as filename
     datetime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    with open(f"roc_{datetime_str}.csv", "w") as f:
+    with open(f"{datetime_str}_roc.csv", "w") as f:
         f.write("fpr,tpr\n")
         for i in range(len(fpr)):
             f.write(f"{fpr[i]},{tpr[i]}\n")

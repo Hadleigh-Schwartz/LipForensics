@@ -1,13 +1,15 @@
 # Lips Don't Lie: A Generalisable and Robust Approach to Face Forgery Detection
-This is a PyTorch implementation of the [LipForensics paper](https://arxiv.org/abs/2012.07657).
-
-![Model Overview](models/model_overview.png)
+This is a fork of the original implementation of the [LipForensics paper](https://arxiv.org/abs/2012.07657). It contains
+several additional scripts and resources to run the model on custom deepfake datasets. Of note are the "prep_vids_lf.py", which preprocess videos to generate necessary input to the LipForensics model, and "clean_lf_data.py," which ensures that input is all valid  before running LipForensics-provided preprocessing and evaluation.
 
 ## Setup
 ### Install packages
+Either try 
 ```bash
 pip install -r requirements.txt
 ```
+
+or use the conda environment yml I provide for running this on the lab workstation (Lambda machine, CUDA 12.2)
 
 Note: we used Python version 3.8 to test this code.
 ### Prepare data
