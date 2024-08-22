@@ -3,6 +3,7 @@ import face_alignment
 from skimage import io
 import matplotlib.pyplot as plt
 import numpy as np
+import glob
 import os
 import time
 import sys
@@ -102,7 +103,93 @@ def prep_video(video_path, vid_num, lip_forensics_absolute_path, fake = False, v
     print(f"Time taken to prep {frame_num} frames of {video_path}: {end - start}")
 
 
+def aggregate_models(lip_forensics_absolute_path):
+    """
+    Take face frames, landmarks, and cropped mouths of each deepfake model and combine into one aggregated deepfake folder at FakeCelebDF.
 
+    Parameters:
+    lip_forensics_absolute_path: str
+        Absolute path to LipForensics repo
+    
+    Returns:
+    None. Saves aggregated face frames, landmarks, and cropped mouths to LipForensics/data/datasets/CelebDF/FakeCelebDF
+    """
+    frames_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/FakeCelebDF/images/"
+    landmarks_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/FakeCelebDF/landmarks/"
+    cropped_mouths_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/FakeCelebDF/cropped_mouths/"
+    # if not os.path.exists(landmarks_output_path):
+    #     os.makedirs(landmarks_output_path)
+    # else:
+    #     raise Exception(f"Path {landmarks_output_path} already exists")
+    # if not os.path.exists(cropped_mouths_output_path):
+    #     os.makedirs(cropped_mouths_output_path)
+    # else:
+    #     raise Exception(f"Path {cropped_mouths_output_path} already exists")
+    # if not os.path.exists(frames_output_path):
+    #     os.makedirs(frames_output_path)
+    # else:   
+    #     raise Exception(f"Path {frames_output_path} already exists")
+    
+    models = ["dagan", "faceswap", "first", "sadtalker", "talklip"]
+    overall_vid_num = 0
+    for model in models:
+        model_landmarks_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{model}/landmarks/"
+        model_cropped_mouths_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{model}/cropped_mouths/"
+        model_frames_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{model}/images/"
+        model_landmark_folders = glob.glob(model_landmarks_path + "*")
+        model_cropped_mouth_folders = glob.glob(model_cropped_mouths_path + "*")
+        model_frame_folders = glob.glob(model_frames_path + "*")
+        # sort folders by number
+        model_landmark_folders.sort(key = lambda x: int(x.split("/")[-1]))
+        model_cropped_mouth_folders.sort(key = lambda x: int(x.split("/")[-1]))
+        model_frame_folders.sort(key = lambda x: int(x.split("/")[-1]))
+        for i in range(len(model_landmark_folders)):
+            if os.path.exists(f"{cropped_mouths_output_path}{str(overall_vid_num).zfill(4)}"):
+                overall_vid_num += 1
+                continue
+            print(model_landmark_folders[i], model_cropped_mouth_folders[i], model_frame_folders[i], f"cp -r {model_landmark_folders[i]} {landmarks_output_path}{str(overall_vid_num).zfill(4)}")
+            os.system(f"cp -r {model_landmark_folders[i]} {landmarks_output_path}{str(overall_vid_num).zfill(4)}")
+            os.system(f"cp -r {model_cropped_mouth_folders[i]} {cropped_mouths_output_path}{str(overall_vid_num).zfill(4)}")
+            os.system(f"cp -r {model_frame_folders[i]} {frames_output_path}{str(overall_vid_num).zfill(4)}")
+            overall_vid_num += 1
+
+def remove_model_from_aggregate(lip_forensics_absolute_path, model_to_remove):
+    """
+    Assumes you have just run aggregate_models and want to remove the folders corresponding to a certain df model from the aggregated folder metdata. 
+
+    Parameters:
+    lip_forensics_absolute_path: str
+        Absolute path to LipForensics repo
+    model_to_remove: str
+        Name of the deepfake model to remove from the aggregated folder. Must be one of "dagan", "faceswap", "first", "sadtalker", "talklip"
+    
+    Returns:
+    None. Removes the folders corresponding to the deepfake model from the aggregated folder metadata
+    """
+    frames_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/FakeCelebDF/images/"
+    landmarks_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/FakeCelebDF/landmarks/"
+    cropped_mouths_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/FakeCelebDF/cropped_mouths/"
+
+    models = ["dagan", "faceswap", "first", "sadtalker", "talklip"]
+    overall_vid_num = 0
+    for model in models:
+        model_landmarks_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{model}/landmarks/"
+        model_cropped_mouths_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{model}/cropped_mouths/"
+        model_frames_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{model}/images/"
+        model_landmark_folders = glob.glob(model_landmarks_path + "*")
+        model_cropped_mouth_folders = glob.glob(model_cropped_mouths_path + "*")
+        model_frame_folders = glob.glob(model_frames_path + "*")
+        # sort folders by number
+        model_landmark_folders.sort(key = lambda x: int(x.split("/")[-1]))
+        model_cropped_mouth_folders.sort(key = lambda x: int(x.split("/")[-1]))
+        model_frame_folders.sort(key = lambda x: int(x.split("/")[-1]))
+        for i in range(len(model_landmark_folders)):
+            if model == model_to_remove:
+                print(f"Removing {landmarks_output_path}{str(overall_vid_num).zfill(4)}, {cropped_mouths_output_path}{str(overall_vid_num).zfill(4)}, {frames_output_path}{str(overall_vid_num).zfill(4)}")
+                os.system(f"rm -r {landmarks_output_path}{str(overall_vid_num).zfill(4)}")
+                os.system(f"rm -r {cropped_mouths_output_path}{str(overall_vid_num).zfill(4)}")
+                os.system(f"rm -r {frames_output_path}{str(overall_vid_num).zfill(4)}")
+            overall_vid_num += 1
 
 # participants = ["yuval", "colman", "toma", "phyllis", "hadleigh", "xiaofeng", "keylen", "rundi",  "tao", "dan", "qijia", "charlie", "ruoshi", "saeyoung", "kathryn", "naz", "honglin", "lisa", "abhinav",  "kahlil"]
 # devices = ["googlepixel", "webcam", "canon", "iphone"]
@@ -124,3 +211,5 @@ def prep_video(video_path, vid_num, lip_forensics_absolute_path, fake = False, v
 #             df_vid_count += 1
 # vid_file.close()
 
+# aggregate_models("/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics")
+remove_model_from_aggregate("/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics", "faceswap")
