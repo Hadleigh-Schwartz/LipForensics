@@ -13,30 +13,6 @@ from tqdm import tqdm
 from utils import warp_img, apply_transform, cut_patch
 
 
-DATASETS = {
-    "FaceForensics++": [
-        "Forensics/RealFF",
-        "Forensics/Deepfakes",
-        "Forensics/FaceSwap",
-        "Forensics/Face2Face",
-        "Forensics/NeuralTextures",
-    ],
-    "RealFF": ["Forensics/RealFF"],
-    "Deepfakes": ["Forensics/Deepfakes"],
-    "FaceSwap": ["Forensics/FaceSwap"],
-    "Face2Face": ["Forensics/Face2Face"],
-    "NeuralTextures": ["Forensics/NeuralTextures"],
-    "FaceShifter": ["Forensics/FaceShifter"],
-    "DeeperForensics": ["Forensics/DeeperForensics"],
-    "CelebDF": ["CelebDF/RealCelebDF", "CelebDF/FakeCelebDF"],
-    "DFDC": ["DFDC"],
-    "dagan" : ["CelebDF/dagan"], 
-    "talklip" : ["CelebDF/talklip"],
-    "sadtalker": ["CelebDF/sadtalker"], 
-    "first" : ["CelebDF/first"],
-    "faceswap" : ["CelebDF/faceswap"],
-    "real" : ["CelebDF/RealCelebDF"]
-}
 STD_SIZE = (256, 256)
 STABLE_POINTS = [33, 36, 39, 42, 45]
 
@@ -48,26 +24,7 @@ def parse_args():
         "--dataset",
         help="Dataset to preprocess",
         type=str,
-        choices=[
-            "all",
-            "FaceForensics++",
-            "RealFF",
-            "Deepfakes",
-            "FaceSwap",
-            "Face2Face",
-            "NeuralTextures",
-            "FaceShifter",
-            "DeeperForensics",
-            "CelebDF",
-            "DFDC",
-            "dagan",
-            "faceswap",
-            "first",
-            "sadtalker",
-            "talklip",
-            "real"
-        ],
-        default="ff",
+        default="ff"
     )
     parser.add_argument(
         "--compression",
@@ -171,25 +128,12 @@ def main():
     mean_face_landmarks = np.load(args.mean_face)
 
     if args.dataset == "all":
-        datasets = [
-            "Forensics/RealFF",
-            "Forensics/Deepfakes",
-            "Forensics/FaceSwap",
-            "Forensics/Face2Face",
-            "Forensics/NeuralTextures",
-            "Forensics/FaceShifter",
-            "Forensics/DeeperForensics",
-            "CelebDF/RealCelebDF",
-            "CelebDF/FakeCelebDF",
-            "DFDC",
-        ]
+        raise NotImplementedError("Not implemented for all datasets")
     else:
-        datasets = DATASETS[args.dataset]
+        datasets =  [f"CelebDF/{args.dataset}"]#"DATASETS[args.dataset]"
 
     for dataset in datasets:
-        compression = (
-            args.compression if dataset not in ("CelebDF/RealCelebDF", "CelebDF/FakeCelebDF", "DFDC", "CelebDF/sadtalker", "CelebDF/talklip", "CelebDF/dagan", "CelebDF/faceswap", "CelebDF/first") else ""
-        )
+        compression = ""
         root = os.path.join(args.data_root, dataset, compression)
         videos_root = os.path.join(root, "images")
         landmarks_root = os.path.join(root, "landmarks")

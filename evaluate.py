@@ -188,6 +188,5 @@ def main():
     auc = validate_video_level(model, loader, args)
     print(args.dataset, f"AUC (video-level): {auc}")
 
-
 if __name__ == "__main__":
     main()

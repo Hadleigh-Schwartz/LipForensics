@@ -7,6 +7,8 @@ import glob
 import os
 import time
 import sys
+import pickle
+from colorama import Fore, Style
 
 # initialize face detector and landmark detector
 if sys.platform == "linux":
@@ -15,7 +17,7 @@ else:
     device = "mps"
 fa = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, device = device, face_detector='blazeface')
 
-def prep_video(video_path, vid_num, lip_forensics_absolute_path, fake = False, visualize_landmarks = False):
+def prep_video(video_path, vid_num, lip_forensics_absolute_path, folder_name, visualize_landmarks = False):
     """
     Parameters:
     video_path: str
@@ -25,14 +27,13 @@ def prep_video(video_path, vid_num, lip_forensics_absolute_path, fake = False, v
         or LipForensics/data/datasets/CelebDF/RealCelebDF
     lip_forensics_absolute_path: str
         Absolute path to LipForensics repo
-    fake: bool
-        Whether the video is a deepfake or real video. Important because it determines whether the images and landmarks are saved to
-        LipForensics/data/datasets/CelebDF/FakeCelebDF or LipForensics/data/datasets/CelebDF/RealCelebDF
+    folder_name: str
+        Images and landmarks will be saved to LipForensics/data/datasets/CelebDF/{folder_name}
     visualize_landmarks: bool
         Whether to display visualization of the landmarks on the face frame
     
     Returns:
-    None. Saves face frames and landmarks to LipForensics/data/datasets/CelebDF/FakeCelebDF or LipForensics/data/datasets/CelebDF/RealCelebDF in
+    None. Saves face frames and landmarks to LipForensics/data/datasets/CelebDF/{folder_name} in
     the requirement format/naming convention for CelebDF, as specified in the LipForensics README.md. We arbitrarily choose CelebDF as the dataset
     we are imitating in order to get results for our own dataset.
     """
@@ -43,14 +44,9 @@ def prep_video(video_path, vid_num, lip_forensics_absolute_path, fake = False, v
     print(f"Prepping {video_path}")
     start = time.time()
    
-    if fake:
-        dataset_name = "test"#"FakeCelebDF"
-    else:
-        dataset_name = "RealCelebDF"
-
     vid_num = str(vid_num).zfill(4)
-    frames_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{dataset_name}/images/{vid_num}/"
-    landmarks_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{dataset_name}/landmarks/{vid_num}/"
+    frames_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{folder_name}/images/{vid_num}/"
+    landmarks_output_path = f"{lip_forensics_absolute_path}/data/datasets/CelebDF/{folder_name}/landmarks/{vid_num}/"
   
     if not os.path.exists(frames_output_path):
         os.makedirs(frames_output_path)
@@ -73,7 +69,6 @@ def prep_video(video_path, vid_num, lip_forensics_absolute_path, fake = False, v
         input = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         lms, _, face_bbox = fa.get_landmarks(input, return_bboxes=True)
         if face_bbox is None or lms is None:
-            print("bad")
             frame_num += 1
             continue
         lms = lms[0]
@@ -191,25 +186,125 @@ def remove_model_from_aggregate(lip_forensics_absolute_path, model_to_remove):
                 os.system(f"rm -r {frames_output_path}{str(overall_vid_num).zfill(4)}")
             overall_vid_num += 1
 
-# participants = ["yuval", "colman", "toma", "phyllis", "hadleigh", "xiaofeng", "keylen", "rundi",  "tao", "dan", "qijia", "charlie", "ruoshi", "saeyoung", "kathryn", "naz", "honglin", "lisa", "abhinav",  "kahlil"]
-# devices = ["googlepixel", "webcam", "canon", "iphone"]
-# paragraph_nums = [1, 2, 3, 4, 5, 6]
-# model = "faceswap"
+
+def prep_e2e_fake_videos():
+    participants = ["yuval", "colman", "toma", "phyllis", "hadleigh", "xiaofeng", "keylen", "rundi",  "tao", "dan", "qijia", "charlie", "ruoshi", "saeyoung", "kathryn", "naz", "honglin", "lisa", "abhinav",  "kahlil"]
+    devices = ["googlepixel", "webcam", "canon", "iphone"]
+    paragraph_nums = [1, 2, 3, 4, 5, 6]
+    model = "faceswap"
 
 
-# vid_file = open("faceswap_video_mapping.csv", "w")
-# vid_file.write("Real/Fake,ID,path\n")
-# df_vid_count = 0
-# for participant in participants:
-#     for device in devices:
-#         for p in paragraph_nums:
-#             vid_path = f"/media/admin/E380-1E91/Deepfake/End_To_End/deepfakes_may24/{participant}/{model}/{device}/p{p}_df.mp4"
-#             if not os.path.exists(vid_path):
-#                 continue
-#             prep_video(vid_path, df_vid_count, "/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics", fake = True)
-#             vid_file.write(f"Fake,{df_vid_count},{vid_path}\n")
-#             df_vid_count += 1
-# vid_file.close()
+    vid_file = open("faceswap_video_mapping.csv", "w")
+    vid_file.write("Real/Fake,ID,path\n")
+    df_vid_count = 0
+    for participant in participants:
+        for device in devices:
+            for p in paragraph_nums:
+                vid_path = f"/media/admin/E380-1E91/Deepfake/End_To_End/deepfakes_may24/{participant}/{model}/{device}/p{p}_df.mp4"
+                if not os.path.exists(vid_path):
+                    continue
+                prep_video(vid_path, df_vid_count, "/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics", fake = True)
+                vid_file.write(f"Fake,{df_vid_count},{vid_path}\n")
+                df_vid_count += 1
+    vid_file.close()
+ 
 
-# aggregate_models("/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics")
-remove_model_from_aggregate("/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics", "faceswap")
+def generate_dyn_micro_fake_clips():
+
+    with open("/home/xiaofeng/deepfake_detection/system/evaluation/dynamic_features/df_ratio_dict.pkl", "rb") as f:
+        df_ratio_dict = pickle.load(f)
+
+    # loop through all paricipants, paragraphs, mod percentages for 4.5s win 
+    mod_percs = ["25", "50", "75"]
+    paragraph_nums = [0, 1, 2, 3]
+    participants = ["charlie", "colman", "hadleigh", "xiaofeng", "lisa", "qi", "qijia", "clementine"]
+    bin_vals = {"0_10": [], "10_20": [], "20_30": [], "30_40": [], "40_50": [], "50_60": [], "60_70": [], "70_80": [], "80_90": [], "90_100": []}
+    bin_targets = {"10_20": [], "20_30": [], "30_40": [], "40_50": []}
+    for participant in participants:
+        for m in mod_percs:
+            for paragraph in paragraph_nums:
+                ratios = df_ratio_dict[participant][m][paragraph][4.5]
+                print(participant, paragraph, m, ratios)
+                for win_num, r in enumerate(ratios):
+                    if r < 0.1:
+                        bin_vals["0_10"].append(r)
+                    elif r > 0.1 and r < 0.2:
+                        bin_vals["10_20"].append(r)
+                        bin_targets["10_20"].append([participant, paragraph, m, win_num])
+                    elif r > 0.2 and r < 0.3:
+                        bin_vals["20_30"].append(r)
+                        bin_targets["20_30"].append([participant, paragraph, m, win_num ])
+                    elif r > 0.3 and r < 0.4:
+                        bin_vals["30_40"].append(r)
+                        bin_targets["30_40"].append([participant, paragraph, m, win_num])
+                    elif r > 0.4 and r < 0.5:
+                        bin_vals["40_50"].append(r)
+                        bin_targets["40_50"].append([participant, paragraph, m, win_num])
+                    elif r > 0.5 and r < 0.6:
+                        bin_vals["50_60"].append(r)
+                    elif r > 0.6 and r < 0.7:
+                        bin_vals["60_70"].append(r)
+                    elif r > 0.7 and r < 0.8:
+                        bin_vals["70_80"].append(r)
+                    elif r > 0.8 and r < 0.9:
+                        bin_vals["80_90"].append(r)
+                    elif r > 0.9:
+                        bin_vals["90_100"].append(r)
+
+
+    for mod_group, targets in bin_targets.items():
+        for t in targets:
+            participant, paragraph, m, win_num = t
+            print(Fore.MAGENTA  + f"{mod_group} " + Fore.BLUE + f"Participant: {participant}, Paragraph: {paragraph}, Mod: {m}, Win: {win_num}" + Style.RESET_ALL)
+            for model in ["dagan", "first", "sadtalker", "talklip"]:
+                output_folder_path = f"/home/hadleigh/deepfake_data/mod_clips/{mod_group}/{model}"
+                if not os.path.exists(output_folder_path):
+                    os.makedirs(output_folder_path)
+                for cam in ["45_close", "45_far", "front_far", "60_close", "60_far", "front_close"]:
+                    vid_path = f"/media/admin/E380-1E91/Deepfake/Dynamic_Micros/df_paragraphs/{participant}/{model}/{m}/{cam}/{participant}_df_p{paragraph}.mp4"
+                    output_path = f"{output_folder_path}/{participant}_{m}_{cam}_{paragraph}_{win_num}.mp4"
+                    print(f"Processing {vid_path} to {output_path}")
+                    os.system(f"ffmpeg -loglevel error -i {vid_path} -ss {win_num * 4.5} -t 4.5 -c copy {output_path}")
+
+def generate_dyn_micro_real_clips():
+    participants = ["charlie", "colman", "hadleigh", "xiaofeng", "lisa", "qi", "qijia", "clementine"]
+    paragraph_nums = [0, 1, 2, 3]
+    for participant in participants:
+        for paragraph in paragraph_nums:
+            for cam in ["45_close", "45_far", "front_far", "60_close", "60_far", "front_close"]:
+                vid_path = f"/media/admin/E380-1E91/Deepfake/Dynamic_Micros/og_paragraphs/{participant}/{cam}/{participant}_og_p{paragraph}.mp4"
+                # get duration of video
+                cap = cv2.VideoCapture(vid_path)
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                duration = frame_count / fps
+                num_wins = int(duration / 4.5)
+                for n in range(num_wins):
+                    output_path = f"/home/hadleigh/deepfake_data/real_clips/{participant}_{paragraph}_{cam}_{n}.mp4"
+                    print(f"Processing {vid_path} to {output_path}")
+                    os.system(f"ffmpeg -loglevel error -i {vid_path} -ss {n * 4.5} -t 4.5 -c copy {output_path}")
+               
+def prep_fake_dyn_clips(mod_groups):
+    models = ["dagan", "first", "sadtalker", "talklip"]
+    for mod_group in mod_groups:
+        for model in models:
+            vid_file = open(f"{mod_group}_{model}_video_mapping.csv", "w")
+            vid_file.write("Real/Fake,ID,path\n")
+            video_paths = glob.glob(f"/home/hadleigh/deepfake_data/mod_clips/{mod_group}/{model}/*")
+            vid_num = 0
+            for vid_path in video_paths:
+                prep_video(vid_path, vid_num, "/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics", f"{mod_group}_{model}")
+                vid_file.write(f"Fake,{vid_num},{vid_path}\n")
+                vid_num += 1
+            vid_file.close()
+
+
+def prep_real_dyn_clips():
+    vid_file = open("real_dyn_video_mapping.csv", "w")
+    vid_file.write("Real/Fake,ID,path\n")
+    video_paths = glob.glob("/home/hadleigh/deepfake_data/real_clips/*")
+    vid_num = 0
+    for vid_path in video_paths:
+        prep_video(vid_path, vid_num, "/home/hadleigh/deepfake_detection/system/evaluation/passive_detection/LipForensics", "real_dyn")
+        vid_file.write(f"Real,{vid_num},{vid_path}\n")
+        vid_num += 1
